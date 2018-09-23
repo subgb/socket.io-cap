@@ -1,0 +1,15 @@
+{
+  "name": "socket.io-cap",
+  "version": "1.0.0",
+  "description": "Proxy server for capturing and modifying socket.io data",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "shia",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:subgb/socket.io-cap.git"
+  }
+}

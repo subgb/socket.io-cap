@@ -8,12 +8,12 @@ const ioClient = require('socket.io-client');
 const chalk = require('chalk');
 
 
-function showPacket(packet) {
+function showPacket(packet, hideArgs=false) {
 	const bg = packet.fromServer? chalk.bgBlue: chalk.bgRed;
 	const event = bg(` ${packet.event} `);
 	const dir = packet.fromServer? '<=': '=>';
 	console.log(event, dir, packet.url)
-	_.forEach(packet.args, x => console.log(x));
+	if (!hideArgs) _.forEach(packet.args, x => console.log(x));
 	console.log();
 }
 
@@ -138,7 +138,7 @@ function ioHandlerFactory(proxy, namespace='/') {
 			const fromServer = true;
 			const info = {url:url.href, fromServer, event, args};
 			proxy.handler(info);
-			cSocket.emit(event, ...info.args);
+			if (!info.drop) cSocket.emit(event, ...info.args);
 		};
 		pSocket.on('disconnect', reason => {
 			console.log(chalk.red('[server socket closed]'), reason)
@@ -150,7 +150,7 @@ function ioHandlerFactory(proxy, namespace='/') {
 			const fromServer = false;
 			const info = {url:url.href, fromServer, event, args};
 			proxy.handler(info);
-			pSocket.emit(event, ...info.args);
+			if (!info.drop) pSocket.emit(event, ...info.args);
 			next();
 		});
 		cSocket.on('error', err => {

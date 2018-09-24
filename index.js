@@ -121,9 +121,10 @@ function ioHandlerFactory (proxy, namespace) {
 	return cSocket => {
 		const {url, rawUrl} = getIoRequestUrl(cSocket.request, namespace);
 		const headers = _.omit(cSocket.request.headers, 'host', 'rawhost');
-		proxy.emit('conn', {url, rawUrl, namespace, headers});
+		const ctx = {url, rawUrl, namespace, headers};
+		proxy.emit('conn', ctx);
 
-		const pSocket = ioClient(url, {
+		const pSocket = ioClient(ctx.url, {
 			reconnection: false,
 			extraHeaders: headers,
 		});

@@ -24,7 +24,7 @@ proxy.on('conn', ctx => {
   ctx.headers.referer = 'http://example.com';
 });
 
-proxy.on('packet', p => {
+proxy.on('packet', (p, {cSocket, pSocket}) => {
   proxy.showPacket(p, false);
 
   if (p.event == 'my-message') {
@@ -33,6 +33,7 @@ proxy.on('packet', p => {
 
   if (p.event == 'test' && p.fromServer) {
   	p.drop = true;
+  	cSocket.emit('custom-message', 'hello world');
   }
 })
 ```

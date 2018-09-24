@@ -136,7 +136,7 @@ function ioHandlerFactory (proxy, namespace) {
 			const [event, ...args] = data;
 			const fromServer = true;
 			const ctx = {url, fromServer, event, args};
-			proxy.emit('packet', ctx);
+			proxy.emit('packet', ctx, {cSocket, pSocket});
 			if (!ctx.drop) cSocket.emit(event, ...ctx.args);
 		};
 		pSocket.on('disconnect', reason => {
@@ -148,7 +148,7 @@ function ioHandlerFactory (proxy, namespace) {
 			const [event, ...args] = packet;
 			const fromServer = false;
 			const ctx = {url, fromServer, event, args};
-			proxy.emit('packet', ctx);
+			proxy.emit('packet', ctx, {cSocket, pSocket});
 			if (!ctx.drop) pSocket.emit(event, ...ctx.args);
 			next();
 		});

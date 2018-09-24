@@ -1,6 +1,6 @@
 {
   "name": "socket.io-cap",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Proxy server for capturing and modifying socket.io data",
   "main": "index.js",
   "scripts": {

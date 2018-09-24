@@ -1,10 +1,14 @@
 const proxy = require('.').createProxy(/*options*/);
 proxy.listen(8889);
 
-proxy.on(packet => {
-	proxy.showPacket(packet);
+proxy.on('conn', ctx => {
+	proxy.showHeader(ctx);
+});
 
-	if (packet.event == 'my-message') {
-		packet.args[0] = 'hello world';
+proxy.on('packet', p => {
+	proxy.showPacket(p);
+
+	if (p.event == 'my-message') {
+		p.args[0] = 'hello world';
 	}
 });

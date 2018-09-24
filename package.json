@@ -17,5 +17,16 @@
     "hoxy": "^3.3.1",
     "lodash": "^4.17.11",
     "socket.io": "^2.1.1"
-  }
+  },
+  "keywords": [
+    "socket.io",
+    "socketio",
+    "proxy",
+    "mitm",
+    "capture",
+    "intercept",
+    "debug",
+    "fiddler",
+    "wssip"
+  ]
 }

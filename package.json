@@ -1,6 +1,6 @@
 {
   "name": "socket.io-cap",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "Proxy server for capturing and modifying socket.io data",
   "main": "index.js",
   "scripts": {
@@ -13,8 +13,8 @@
     "url": "git@github.com:subgb/socket.io-cap.git"
   },
   "dependencies": {
+    "@subns/hoxy": "^3.3.5",
     "chalk": "^2.4.1",
-    "hoxy": "^3.3.1",
     "lodash": "^4.17.11",
     "socket.io": "^2.1.1"
   },

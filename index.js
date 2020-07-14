@@ -9,11 +9,7 @@ const ioClient = require('socket.io-client');
 const ProxyAgent = require('proxy-agent');
 const chalk = require('chalk');
 
-exports.createProxy = function(...args) {
-	return new IOProxy(...args);
-}
-
-class IOProxy extends EventEmitter {
+module.exports = class IOProxy extends EventEmitter {
 	constructor(hoxyOpts, namespaces=[]) {
 		super();
 		this.namespaces = _(namespaces).castArray().compact().without('/').value();

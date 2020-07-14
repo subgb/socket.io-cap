@@ -1,6 +1,5 @@
 const _ = require('lodash');
 const http = require('http');
-const net = require('net');
 const {URL} = require('url');
 const EventEmitter = require('events');
 const hoxy = require('hoxyws');
@@ -25,10 +24,10 @@ module.exports = class IOProxy extends EventEmitter {
 		return this;
 	}
 
-	showPacket ({fromServer, ioUrl, event, args}, hideArgs=false) {
+	showPacket ({namespace='', fromServer, ioUrl, event, args}, hideArgs=false) {
 		const bg = fromServer? chalk.bgBlue: chalk.bgRed;
 		const dir = fromServer? '<=': '=>';
-		console.log(bg(` ${event} `), dir, ioUrl)
+		console.log(chalk.yellow(namespace), bg(` ${event} `), dir, ioUrl)
 		if (!hideArgs) _.forEach(args, x => console.log(x));
 		console.log();
 	}
@@ -122,28 +121,35 @@ function ioHandlerFactory (proxy, namespace) {
 			if (data.length==0) throw new Error('packet no data');
 			const [event, ...args] = data;
 			const fromServer = true;
-			const ctx = {ioUrl, fromServer, event, args};
+			const ctx = {ioUrl, namespace, fromServer, event, args};
 			proxy.emit('packet', ctx, {cSocket, pSocket});
 			if (!ctx.drop) cSocket.emit(event, ...ctx.args);
 		};
 		pSocket.on('disconnect', reason => {
-			console.log(chalk.red('[server socket closed]'), reason)
+			console.log(namespace||'', chalk.red('[server socket closed]'), reason, rawUrl)
 			cSocket.disconnect();
-		})
+		});
+		pSocket.on('connect_error', err => {
+			console.log(namespace||'', chalk.red('[server socket error]'), err.message||err, rawUrl);
+			cSocket.disconnect();
+		});
+		pSocket.on('error', err => {
+			console.log(namespace||'', chalk.red('[server socket error]'), err.message, rawUrl);
+		});
 
 		cSocket.use((packet, next) => {
 			const [event, ...args] = packet;
 			const fromServer = false;
-			const ctx = {ioUrl, fromServer, event, args};
+			const ctx = {ioUrl, namespace, fromServer, event, args};
 			proxy.emit('packet', ctx, {cSocket, pSocket});
 			if (!ctx.drop) pSocket.emit(event, ...ctx.args);
 			next();
 		});
 		cSocket.on('error', err => {
-			console.log(chalk.red('[client socket error]'), err.message);
+			console.log(namespace||'', chalk.red('[client socket error]'), err.message, rawUrl);
 		})
 		cSocket.on('disconnect', reason => {
-			console.log(chalk.red('[client socket closed]'), reason)
+			console.log(namespace||'', chalk.red('[client socket closed]'), reason, rawUrl)
 			pSocket.close();
 		});
 	}

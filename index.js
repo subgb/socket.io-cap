@@ -6,6 +6,7 @@ const EventEmitter = require('events');
 const hoxy = require('hoxyws');
 const ioServer = require('socket.io');
 const ioClient = require('socket.io-client');
+const ProxyAgent = require('proxy-agent');
 const chalk = require('chalk');
 
 exports.createProxy = function(...args) {
@@ -109,12 +110,14 @@ function ioHandlerFactory (proxy, namespace) {
 		const ctx = {ioUrl, ioPath, rawUrl, namespace, headers};
 		proxy.emit('conn', ctx);
 
-		const pSocket = ioClient(ctx.ioUrl, {
+		const opts = {
 			reconnection: false,
 			path: ioPath,
 			extraHeaders: headers,
 			rejectUnauthorized: false,
-		});
+		};
+		if (ctx.proxy) opts.agent = new ProxyAgent(ctx.proxy);
+		const pSocket = ioClient(ctx.ioUrl, opts);
 		const onevent = pSocket.onevent.bind(pSocket);
 
 		pSocket.onevent = function (packet) {

@@ -11,16 +11,27 @@ npm install socket.io-cap
 ## Example
 
 ```js
-const proxy = require('socket.io-cap').createProxy().listen(8889);
+const IOProxy = require('socket.io-cap');
+const proxy = new IOProxy().listen(8889);
 proxy.showAll();
 ```
 
 ```js
-const proxy = require('socket.io-cap').createProxy({/*options*/});
-proxy.listen(8889);
+const fs = require('fs');
+const IOProxy = require('socket.io-cap');
+
+const namespaces = ['/io-namespace-one', '/io-namespace-two'];
+const hoxyOpts = {
+  certAuthority: {
+    key: fs.readFileSync('./ca-key.pem'),
+    cert: fs.readFileSync('./ca-crt.pem'),
+  }
+};
+const proxy = new IOProxy(hoxyOpts, namespaces).listen(8889);
 
 proxy.on('conn', ctx => {
   proxy.showHeader(ctx);
+  ctx.proxy = 'socks://localhost:1080';
   ctx.headers.referer = 'http://example.com';
 });
 

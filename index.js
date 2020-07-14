@@ -1,44 +1,37 @@
 const _ = require('lodash');
 const http = require('http');
 const net = require('net');
-const URL = require('url').URL;
+const {URL} = require('url');
 const EventEmitter = require('events');
-const hoxy = require('@subns/hoxy');
+const hoxy = require('hoxyws');
 const ioServer = require('socket.io');
 const ioClient = require('socket.io-client');
 const chalk = require('chalk');
 
-exports.createProxy = function(options) {
-	return new IOProxy(options);
+exports.createProxy = function(...args) {
+	return new IOProxy(...args);
 }
 
 class IOProxy extends EventEmitter {
-	constructor ({
-		namespaces = [],
-		hosts = [],
-		prefix = 'socket.io/*',
-		internalPort = 0,
-	} = {}) {
+	constructor(hoxyOpts, namespaces=[]) {
 		super();
-		this.wsHosts = _(hosts).castArray().compact().keyBy().mapValues(x=>true).value();
 		this.namespaces = _(namespaces).castArray().compact().without('/').value();
-		this.internalPort = internalPort || (47100 + Math.floor(Math.random()*900));
-		this.internalServer = createInternalIOServer(this);
-		this.proxyServer = createProxyServer(this, prefix);
+		this.createInternalIOServer();
+		this.createHoxyServer(hoxyOpts);
 	}
 
 	listen (port) {
-		this.internalServer.listen(this.internalPort, '127.0.0.1');
+		this.internalServer.listen(0, 'localhost');
 		this.proxyServer.listen(port, () =>
 			console.log(chalk.blue(`socket.io proxy listening on ${port}`))
 		);
 		return this;
 	}
 
-	showPacket ({fromServer, url, event, args}, hideArgs=false) {
+	showPacket ({fromServer, ioUrl, event, args}, hideArgs=false) {
 		const bg = fromServer? chalk.bgBlue: chalk.bgRed;
 		const dir = fromServer? '<=': '=>';
-		console.log(bg(` ${event} `), dir, url)
+		console.log(bg(` ${event} `), dir, ioUrl)
 		if (!hideArgs) _.forEach(args, x => console.log(x));
 		console.log();
 	}
@@ -56,87 +49,81 @@ class IOProxy extends EventEmitter {
 		this.on('conn', ctx => this.showHeader(ctx));
 		this.on('packet', p => this.showPacket(p));
 	}
-}
 
+	createHoxyServer(hoxyOpts) {
+		if (this.proxyServer) return;
+		const server = hoxy.createServer(hoxyOpts);
+		server.on('error', e=>this.emit('error', e));
 
-function createProxyServer (proxy, prefix) {
-	const server = hoxy.createServer();
-
-	server.intercept({
-		phase: 'request',
-		url: prefix,
-	}, (req, resp, cycle) => {
-		const host = `${req.hostname}:${req.port||80}`;
-		proxy.wsHosts[host] = true;
-		req.headers.rawhost = `${req.protocol}//${host}`;
-		req.hostname = '127.0.0.1';
-		req.port = proxy.internalPort;
-	});
-
-	server._server.on('connect', (request, clientSocket, head) => {
-		let target = request.url;
-		const isWs = proxy.wsHosts[target];
-		if (isWs) {
-			if (head.length) console.log(chalk.red('WebSocket head:'), head.toString());
-			target = `127.0.0.1:${proxy.internalPort}`;
+		for (const phase of ['request', 'websocket']) {
+			server.intercept({
+				phase,
+				fullUrl: /\/\?.*\bEIO=\d+\b.*&transport=/,
+			}, (req, res, cycle) => {
+				cycle.skipProxy = true;
+				const pu = new URL(req.fullUrl());
+				req.headers.rawurl = pu.href;
+				pu.protocol = 'http:';
+				pu.hostname = '127.0.0.1';
+				pu.pathname = '/socket.io/';
+				pu.port = this.internalServer.address().port;
+				req.fullUrl(pu.href);
+			});
 		}
-		const {hostname, port} = new URL(`http://${target}`);
-		const serverSocket = net.connect(port||80, hostname, () => {
-			clientSocket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
-			serverSocket.write(head);
-			clientSocket.pipe(serverSocket).pipe(clientSocket);
-		}).on('error', err => {
-			clientSocket.end();
-			if (isWs) console.log(chalk.red(err.message));
+		this.proxyServer = server;
+	}
+
+	createInternalIOServer() {
+		if (this.internalServer) return;
+
+		const server = http.createServer((req, res) => {
+			res.end();
+			const err = new Error('Internal IO-server received a non IO request');
+			err.url = req.headers.rawurl || req.url;
+			this.emit('error', err);
 		});
-	});
 
-	return server;
-}
+		const io = ioServer(server);
+		io.on('connection', ioHandlerFactory(this));
+		_.forEach(this.namespaces, ns => {
+			io.of(ns).on('connection', ioHandlerFactory(this, ns));
+		});
 
-function createInternalIOServer (proxy) {
-	const internalServer = http.createServer((req, res) => {
-		res.end();
-		console.log(chalk.red('INNER ERROR'), req.headers.host, req.url)
-	});
+		io.of(/.*/).on('connection', cSocket => {
+			const nsps = _.without(_.keys(io.nsps), '/', ...this.namespaces);
+			console.log(
+				chalk.bgYellow.red(' unknown io namepace: '),
+				chalk.red(nsps.join(' ')),
+			);
+		});
 
-	const io = ioServer(internalServer);
-	io.on('connection', ioHandlerFactory(proxy));
-	_.forEach(proxy.namespaces, ns => {
-		io.of(ns).on('connection', ioHandlerFactory(proxy, ns));
-	});
-
-	io.of(/.*/).on('connection', cSocket => {
-		const nsps = _.without(_.keys(io.nsps), '/', ...proxy.namespaces);
-		console.log(
-			chalk.bgYellow.red(' unknown io namepace: '),
-			chalk.red(nsps.join(' ')),
-		);
-	});
-
-	return internalServer;
+		this.internalServer = server;
+	}
 }
 
 function ioHandlerFactory (proxy, namespace) {
 	return cSocket => {
-		const {url, rawUrl} = getIoRequestUrl(cSocket.request, namespace);
-		const headers = _.omit(cSocket.request.headers, 'host', 'rawhost');
-		const ctx = {url, rawUrl, namespace, headers};
+		const rawUrl = cSocket.request.headers.rawurl;
+		const {ioUrl, ioPath} = getIoRequestUrl(rawUrl, namespace);
+		const headers = _.omit(cSocket.request.headers, 'host', 'rawurl', 'accept-encoding', 'connection');
+		const ctx = {ioUrl, ioPath, rawUrl, namespace, headers};
 		proxy.emit('conn', ctx);
 
-		const pSocket = ioClient(ctx.url, {
+		const pSocket = ioClient(ctx.ioUrl, {
 			reconnection: false,
+			path: ioPath,
 			extraHeaders: headers,
+			rejectUnauthorized: false,
 		});
 		const onevent = pSocket.onevent.bind(pSocket);
 
 		pSocket.onevent = function (packet) {
 			const data = packet.data || [];
-			onevent(packet); 
+			onevent(packet);
 			if (data.length==0) throw new Error('packet no data');
 			const [event, ...args] = data;
 			const fromServer = true;
-			const ctx = {url, fromServer, event, args};
+			const ctx = {ioUrl, fromServer, event, args};
 			proxy.emit('packet', ctx, {cSocket, pSocket});
 			if (!ctx.drop) cSocket.emit(event, ...ctx.args);
 		};
@@ -148,7 +135,7 @@ function ioHandlerFactory (proxy, namespace) {
 		cSocket.use((packet, next) => {
 			const [event, ...args] = packet;
 			const fromServer = false;
-			const ctx = {url, fromServer, event, args};
+			const ctx = {ioUrl, fromServer, event, args};
 			proxy.emit('packet', ctx, {cSocket, pSocket});
 			if (!ctx.drop) pSocket.emit(event, ...ctx.args);
 			next();
@@ -163,13 +150,14 @@ function ioHandlerFactory (proxy, namespace) {
 	}
 }
 
-function getIoRequestUrl (req, path='/') {
-	const u = new URL(req.headers.rawhost + req.url);
-	const rawUrl = u.href;
-	u.pathname = path;
-	u.searchParams.delete('EIO');
-	u.searchParams.delete('transport');
-	u.searchParams.delete('t');
-	const url = u.href;
-	return {url, rawUrl};
+function getIoRequestUrl (rawUrl, path='/') {
+	const pu = new URL(rawUrl);
+	const ioPath = pu.pathname;
+	pu.pathname = path;
+	pu.searchParams.delete('EIO');
+	pu.searchParams.delete('transport');
+	pu.searchParams.delete('t');
+	pu.searchParams.delete('b64');
+	const ioUrl = pu.href;
+	return {ioUrl, ioPath};
 }

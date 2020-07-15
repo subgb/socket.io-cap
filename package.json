@@ -13,8 +13,8 @@
     "url": "git@github.com:subgb/socket.io-cap.git"
   },
   "dependencies": {
-    "@subns/hoxy": "^3.3.5",
     "chalk": "^2.4.1",
+    "hoxyws": "^3.5.5",
     "lodash": "^4.17.11",
     "socket.io": "^2.1.1"
   },

@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "chalk": "^2.4.1",
-    "hoxyws": "^3.5.5",
+    "hoxyws": "^3.5.6",
     "lodash": "^4.17.11",
     "socket.io": "^2.1.1"
   },

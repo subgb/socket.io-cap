@@ -97,7 +97,7 @@ module.exports = class IOProxy extends EventEmitter {
 		const arr = [
 			timeiso().slice(-8),
 			chalk.yellow(io.sid),
-			chalk.bgWhite.black(` ${nsp} `) + bg.black(` ${isAck?'ACK':event} `),
+			chalk.bgWhite.black(` ${nsp} `) + bg.black(` ${isAck?'-ACK-':event} `),
 		];
 		if (id!=null) arr.push(id);
 		arr.push(dir);
@@ -215,7 +215,8 @@ module.exports = class IOProxy extends EventEmitter {
 	}
 
 	parseMessage(packet, fromServer, io) {
-		const {nsp, id, data: [event, ...args]} = packet;
+		const {type, nsp, id, data} = packet;
+		const [event, ...args] = type==2? data: [null, ...data];
 		this.emit('message', {nsp, event, args, id, fromServer, io});
 	}
 

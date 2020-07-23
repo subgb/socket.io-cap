@@ -60,6 +60,7 @@ module.exports = class IOProxy extends EventEmitter {
 		if (showRaw) arr.push(chalk.gray.underline(raw));
 		if (showParsed) arr.push(packet);
 		console.log(...arr);
+		console.log();
 	}
 
 	showSocketPacket({packet, fromServer, io, raw}, {
@@ -83,6 +84,7 @@ module.exports = class IOProxy extends EventEmitter {
 		if (showRaw) arr.push(chalk.gray.underline(raw));
 		if (showParsed) arr.push(packet);
 		console.log(...arr);
+		console.log();
 	}
 
 	showMessage({nsp, event, args, fromServer, io, id}, {

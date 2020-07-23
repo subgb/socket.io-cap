@@ -1,6 +1,6 @@
 # socket.io-cap
 
-Proxy server for capturing and modifying socket.io data.
+Proxy server for capturing socket.io data.
 
 ## Installation
 
@@ -10,41 +10,48 @@ npm install socket.io-cap
 
 ## Example
 
-```js
-const IOProxy = require('socket.io-cap');
-const proxy = new IOProxy().listen(8889);
-proxy.showAll();
-```
 
 ```js
 const fs = require('fs');
 const IOProxy = require('socket.io-cap');
 
-const namespaces = ['/io-namespace-one', '/io-namespace-two'];
 const hoxyOpts = {
   certAuthority: {
     key: fs.readFileSync('./ca-key.pem'),
     cert: fs.readFileSync('./ca-crt.pem'),
   }
 };
-const proxy = new IOProxy(hoxyOpts, namespaces).listen(8889);
+const proxy = new IOProxy(hoxyOpts).listen(8889);
 
 proxy.on('conn', ctx => {
-  proxy.showHeader(ctx);
-  ctx.proxy = 'socks://localhost:1080';
-  ctx.headers.referer = 'http://example.com';
+  //ctx.proxy = 'socks://localhost:1080';
+  proxy.showConn(ctx, {
+    showHeader: false,
+  });
 });
 
-proxy.on('packet', (p, {cSocket, pSocket}) => {
-  proxy.showPacket(p, false);
+proxy.on('engine', ctx => {
+  proxy.showEnginePacket(ctx, {
+    showUrl: true,
+    showRaw: false,
+    showParsed: true,
+    skipMessage: true,
+  });
+});
 
-  if (p.event == 'my-message') {
-    p.args[0] = 'hello world';
-  }
+proxy.on('socket', ctx => {
+  proxy.showSocketPacket(ctx, {
+    showUrl: true,
+    showRaw: false,
+    showParsed: true,
+    skipMessage: true,
+  });
+});
 
-  if (p.event == 'test' && p.fromServer) {
-  	p.drop = true;
-  	cSocket.emit('custom-message', 'hello world');
-  }
-})
+proxy.on('message', ctx => {
+  proxy.showMessage(ctx, {
+    showUrl: true,
+    showArgs: true,
+  });
+});
 ```

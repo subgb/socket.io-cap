@@ -178,37 +178,37 @@ module.exports = class IOProxy extends EventEmitter {
 			cycle.proxy = ctx.proxy;
 			cycle.on('ws-frame', frame => {
 				if (frame.type!='message') return;
-				const {fromServer} = frame;
 				const raw = frame.data;
 				const packet = EGParser.decodePacket(raw);
-				this.emit('engine', {packet, fromServer, io, raw});
-				if (packet.type=='message') {
-					this.parsePacket(packet.data, fromServer, ctx);
-				}
+				this.parseEngine(packet, frame.fromServer, io, raw);
 			});
 		});
 	}
 
 	parsePooling(payload, fromServer, io) {
 		EGParser.decodePayload(payload, (packet) => {
-			 if (packet.type=='open') {
-				const data = JSON.parse(packet.data);
-				io.sid = data.sid;
-				io.sDecoder = this.createDecoder(io, true);
-				io.cDecoder = this.createDecoder(io, false);
-				this.ioCache.set(data.sid, io);
-				this.emit('open', io);
-			}
 			EGParser.encodePacket(packet, raw => {
-				this.emit('engine', {packet, fromServer, io, raw});
+				this.parseEngine(packet, fromServer, io, raw);
 			});
-			if (packet.type=='message') {
-				this.parsePacket(packet.data, fromServer, io);
-			}
 		});
 	}
 
-	parsePacket(payload, fromServer, ctx) {
+	parseEngine(packet, fromServer, io, raw) {
+		if (packet.type=='open') {
+			const data = JSON.parse(packet.data);
+			io.sid = data.sid;
+			io.sDecoder = this.createDecoder(io, true);
+			io.cDecoder = this.createDecoder(io, false);
+			this.ioCache.set(data.sid, io);
+			this.emit('open', io);
+		}
+		this.emit('engine', {packet, fromServer, io, raw});
+		if (packet.type=='message') {
+			this.parseSocket(packet.data, fromServer, io);
+		}
+	}
+
+	parseSocket(payload, fromServer, ctx) {
 		const io = this.ioCache.get(ctx.sid);
 		const decoder = fromServer? io.sDecoder: io.cDecoder;
 		decoder.add(payload);

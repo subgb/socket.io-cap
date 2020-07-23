@@ -17,6 +17,7 @@
     "chalk": "^2.4.1",
     "hoxyws": "^3.6.0",
     "lodash": "^4.17.19",
+    "shiajs": "^1.1.0",
     "socket.io": "^2.3.0"
   },
   "keywords": [

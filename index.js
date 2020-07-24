@@ -9,16 +9,6 @@ const EGParser = require('engine.io-parser');
 const RE_SOCKETIO = /\/\?.*\bEIO=\d+\b.*&transport=(polling|websocket|flashsocket)/;
 const ioEncoder = new IOParser.Encoder();
 
-const IO_PACKET_TYPES = {
-	0: 'CONNECT',
-	1: 'DISCONNECT',
-	2: 'EVENT',
-	3: 'ACK',
-	4: 'ERROR',
-	5: 'BINARY_EVENT',
-	6: 'BINARY_ACK',
-};
-
 module.exports = class IOProxy extends EventEmitter {
 	constructor(hoxyOpts) {
 		super();
@@ -70,7 +60,7 @@ module.exports = class IOProxy extends EventEmitter {
 		skipMessage = true,
 	} = {}) {
 		if (skipMessage&&(packet.type==2||packet.type==3)) return;
-		const type = IO_PACKET_TYPES[packet.type] || 'unknown';
+		const type = IOParser.types[packet.type] || 'unknown';
 		const bg = fromServer? chalk.bgBlue: chalk.bgRed;
 		const dir = fromServer? '<=': '=>';
 		const arr = [

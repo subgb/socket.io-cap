@@ -23,6 +23,10 @@ const hoxyOpts = {
 };
 const proxy = new IOProxy(hoxyOpts).listen(8889);
 
+proxy.on('error', e => {
+  console.log('ERROR', e.url, e.message)
+});
+
 proxy.on('conn', ctx => {
   //ctx.proxy = 'socks://localhost:1080';
   proxy.showConn(ctx, {
